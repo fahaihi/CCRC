@@ -1,0 +1,106 @@
+#!/bin/bash
+set -e
+chmod +x install.sh
+./install.sh
+# CCRC Reads Compressor PipeLine
+usage() {
+  cat <<EOF
+
+CCRC: A Clustering and Cycle-Hash-LinkedList based Read Compressor.
+Works on fixed length reads (No More Than 256 bp).
+
+Usage:
+Compression-> Compress Multi-FastQ Files
+  ./CCRC -c multi-fastQ-files-path [-u user_defined_ram_size] [-t num_threads] [-q] [-e]
+  [-c] compression fastq files directory.
+  [-u] user default memory size, no more than system allowed. --Default=10 GB
+  [-t] num_threads. --Default=8threads
+  [-q] write quality values and read ids to .quality && .id files, respectively!
+  [-e] remove temp files.
+DECompression-> DECompress Multi-FastQ Files
+  ./CCRC -d input_file_dir [-t num_threads]
+  [-t] num_threads. --Default=8threads
+  [-e] remove temp files
+Help (print this message)
+  ./CCRC -h
+
+More supplementary information at:
+https://github.com/fahahi/CCRC/supplementary.pdf
+
+Acknowledgement:
+A:https://github.com/shubhamchandak94/HARC
+B:https://hpc.gxu.edu.cn
+EOF
+  exit 0
+}
+
+compress() {
+  echo "CCRC Compressor Running.........."
+  if [[ ${debugModel} == 1 ]]; then
+    echo "Ordinary WorkFlow of CCRC Reads Compression"
+    cd src
+    ./compressor1.sh ${filename} ${preserve_quality} ${num_thr} ${C_ram} ${clean_flag}
+  elif [[ ${debugModel} == 2 ]]; then
+    echo "Ablation Study Without Multi-FastQ Files Clustering"
+  else
+    echo "Ablation Study Without Similarity Reads Substitution"
+  fi
+
+}
+
+decompress() {
+  echo "CCRC DE-Compressor Running.........."
+
+  if [[ ${debugModel} == 1 ]]; then
+    echo "Ordinary WorkFlow of CCRC Reads Compression"
+  elif [[ ${debugModel} == 2 ]]; then
+    echo "Ablation Study Without Multi-FastQ Files Clustering"
+  else
+    echo "Ablation Study Without Similarity Reads Substitution"
+
+  fi
+}
+
+#Initialize variables to default values.
+debugModel=1
+# 1 Ordinary WorkFlow of CCRC Reads Compression
+# 2 Ablation Study Without Multi-FastQ Files Clustering
+# 3 Ablation Study Without Similarity Reads Substitution
+
+#Check the number of arguments. If none are passed, print help and exit.
+NUMARGS=$#
+if [ $NUMARGS -eq 0 ]; then
+  usage
+fi
+
+mode=''
+filename=''
+preserve_order="False"
+preserve_quality="False"
+num_thr=8
+C_ram=10
+clean_flag="False"
+
+while getopts ':c:d:u:t:qeh' opt; do
+  case "$opt" in
+  c) [[ -n "$mode" ]] && usage || mode='c' && filename=$OPTARG ;;
+  d) [[ -n "$mode" ]] && usage || mode='d' && filename=$OPTARG ;;
+  t) num_thr=$OPTARG ;;
+  u) C_ram=$OPTARG ;;
+  q) preserve_quality="True" ;;
+  e) clean_flag="True" ;;
+  h) usage ;;
+  \?) usage ;;
+  *) usage ;;
+  esac
+done
+
+if [[ $mode == 'c' ]]; then
+  compress
+elif [[ $mode == 'd' ]]; then
+  decompress
+else
+  echo "You must input -d or -c"
+  usage
+  exit 1
+fi
